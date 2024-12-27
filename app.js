@@ -3,6 +3,7 @@ let currentSession = null;
 let isAuthenticated = false;
 let isLogin = true;
 let isTyping = false;
+
 const authPage = document.getElementById('auth-page');
 const chatPage = document.getElementById('chat-page');
 const authForm = document.getElementById('auth-form');
@@ -384,9 +385,7 @@ function showTypingIndicator() {
     typingDiv.innerHTML = `
         <div class="message-container">
             <div class="message-content">
-                <div class="message-header">
-                    <span class="sender-name">Ryn</span>
-                </div>
+
                 <div class="typing-indicator">
                     <span></span>
                     <span></span>
@@ -398,6 +397,7 @@ function showTypingIndicator() {
     messagesContainer.appendChild(typingDiv);
     scrollToBottom();
 }
+
 
 
 function logout() {
@@ -421,6 +421,5 @@ function toggleSidebar() {
 
 menuToggle.addEventListener('click', toggleSidebar);
 sidebarOverlay.addEventListener('click', toggleSidebar);
-
 
 initialize();
