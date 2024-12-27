@@ -1,9 +1,13 @@
+// Configuration
 const API_BASE_URL = 'https://ai-lf07.onrender.com/api';
+
+// State management
 let currentSession = null;
 let isAuthenticated = false;
 let isLogin = true;
 let isTyping = false;
 
+// DOM Elements
 const authPage = document.getElementById('auth-page');
 const chatPage = document.getElementById('chat-page');
 const authForm = document.getElementById('auth-form');
@@ -20,6 +24,7 @@ const logoutBtn = document.getElementById('logout-btn');
 const sessionsList = document.getElementById('sessions-list');
 const statusIndicator = document.getElementById('status-indicator');
 
+// Event Listeners
 document.addEventListener('DOMContentLoaded', initialize);
 authForm.addEventListener('submit', handleAuth);
 authSwitchBtn.addEventListener('click', toggleAuthMode);
@@ -30,6 +35,7 @@ logoutBtn.addEventListener('click', logout);
 messageInput.addEventListener('input', handleInput);
 messageInput.addEventListener('keypress', handleKeyPress);
 
+// Initialization
 function initialize() {
     checkAuth();
     setupMarkdown();
@@ -45,6 +51,7 @@ function setupMarkdown() {
     });
 }
 
+// Authentication Functions
 function checkAuth() {
     const token = localStorage.getItem('token');
     if (token) {
@@ -111,6 +118,7 @@ function showError(message) {
     authError.style.display = 'block';
 }
 
+// API Helper
 async function makeAuthenticatedRequest(endpoint, options = {}) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -145,6 +153,7 @@ async function makeAuthenticatedRequest(endpoint, options = {}) {
         throw error;
     }
 }
+// Chat Functions
 async function loadSessions() {
     try {
         const response = await makeAuthenticatedRequest('/sessions');
@@ -197,13 +206,14 @@ async function loadMessages(sessionId) {
 }
 
 function renderMessages(messages) {
-    messagesContainer.innerHTML = messages.map(message => `
-        <div class="message ${message.role}">
-            ${marked.parse(message.content)}
-        </div>
-    `).join('');
+    messagesContainer.innerHTML = '';
+    messages.forEach(message => {
+        const messageElement = createMessageElement(message, false);
+        messagesContainer.appendChild(messageElement);
+    });
     
-    document.querySelectorAll('pre code').forEach((block) => {
+    // Apply syntax highlighting to all code blocks
+    messagesContainer.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightBlock(block);
     });
     
@@ -212,18 +222,19 @@ function renderMessages(messages) {
 
 
 
-function appendMessage(message) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${message.role}`;
-    messageDiv.innerHTML = marked.parse(message.content);
+function appendMessage(message, animate = false) {
+    const messageElement = createMessageElement(message, animate);
+    messagesContainer.appendChild(messageElement);
     
-    messageDiv.querySelectorAll('pre code').forEach((block) => {
-        hljs.highlightBlock(block);
-    });
+    if (!animate) {
+        messageElement.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightBlock(block);
+        });
+    }
     
-    messagesContainer.appendChild(messageDiv);
     scrollToBottom();
 }
+
 
 async function createNewSession() {
     try {
@@ -245,9 +256,44 @@ async function createNewSession() {
     }
 }
 
+// UI Helpers
 function handleInput() {
     adjustTextareaHeight();
     sendButton.disabled = !messageInput.value.trim();
+}
+function handleMobileInput() {
+    const viewport = window.visualViewport;
+    if (viewport) {
+        const isKeyboardOpen = viewport.height < window.innerHeight;
+        if (isKeyboardOpen) {
+            messagesContainer.style.paddingBottom = `${80 + (window.innerHeight - viewport.height)}px`;
+            scrollToBottom();
+        } else {
+            messagesContainer.style.paddingBottom = '80px';
+        }
+    }
+}
+
+function initializeMobileHandlers() {
+    if ('visualViewport' in window) {
+        window.visualViewport.addEventListener('resize', handleMobileInput);
+    }
+    
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('open') && 
+            !sidebar.contains(e.target) && 
+            !menuToggle.contains(e.target)) {
+            toggleSidebar();
+        }
+    });
+    
+    // Handle mobile back button
+    window.addEventListener('popstate', () => {
+        if (sidebar.classList.contains('open')) {
+            toggleSidebar();
+        }
+    });
 }
 
 function handleKeyPress(e) {
@@ -288,45 +334,89 @@ function createMessageElement(message, animate = false) {
     messageDiv.className = `message ${message.role}`;
     messageDiv.innerHTML = `
         <div class="message-container">
-            
+            <div class="message-avatar">
+                ${message.role === 'assistant' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>'}
+            </div>
             <div class="message-content">
                 <div class="message-header">
-                    <span class="sender-name">${message.role === 'assistant' ? 'Ryn' : 'You'}</span>
-                    <span class="timestamp">${timestamp}</span>
+                    <span class="message-sender">${message.role === 'assistant' ? 'Ryn' : 'You '}</span>
+                    <span class="message-time"> &nbsp; ${timestamp}</span>
                 </div>
                 <div class="message-text"></div>
             </div>
         </div>
     `;
     
+    const messageText = messageDiv.querySelector('.message-text');
+    
     if (animate && message.role === 'assistant') {
-        typeMessage(messageDiv.querySelector('.message-text'), message.content);
+        typeMessage(messageText, message.content);
     } else {
-        messageDiv.querySelector('.message-text').innerHTML = marked.parse(message.content);
+        messageText.innerHTML = formatMessage(message.content);
     }
     
     return messageDiv;
 }
 
+function formatMessage(content) {
+    // Ensure proper newline handling and code formatting
+    const formattedContent = marked.parse(content, {
+        breaks: true,
+        gfm: true,
+        highlight: function(code, language) {
+            try {
+                if (language && hljs.getLanguage(language)) {
+                    return hljs.highlight(code, { language }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            } catch (err) {
+                console.error('Highlight error:', err);
+                return code;
+            }
+        }
+    });
+    
+    return formattedContent;
+}
+
 async function typeMessage(element, content) {
-    const renderedContent = marked.parse(content);
+    const renderedContent = formatMessage(content);
     element.innerHTML = '';
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = renderedContent;
-    const textContent = tempDiv.textContent;
+    const textNodes = [];
+    
+    function collectTextNodes(node) {
+        if (node.nodeType === 3) {
+            textNodes.push(node);
+        } else {
+            node.childNodes.forEach(child => collectTextNodes(child));
+        }
+    }
+    
+    collectTextNodes(tempDiv);
+    const totalText = textNodes.map(node => node.textContent).join('');
     
     let i = 0;
     isTyping = true;
     
     const typeChar = () => {
-        if (i < textContent.length && isTyping) {
-            element.innerHTML = marked.parse(textContent.substring(0, i + 1));
-            i++;
-            setTimeout(typeChar, Math.random() * 30 + 20);
+        const charsPerFrame = 3;
+        
+        if (i < totalText.length && isTyping) {
+            const remainingChars = totalText.length - i;
+            const charsToAdd = Math.min(charsPerFrame, remainingChars);
+            
+            i += charsToAdd;
+            element.innerHTML = formatMessage(totalText.substring(0, i));
+            
+            setTimeout(typeChar, 5);
         } else {
             element.innerHTML = renderedContent;
             isTyping = false;
+            scrollToBottom();
+            removeTypingIndicator();
         }
     };
     
@@ -350,7 +440,7 @@ async function sendMessage() {
         messageInput.value = '';
         adjustTextareaHeight();
         
-        showTypingIndicator();
+        const typingIndicator = showTypingIndicator();
         
         const response = await makeAuthenticatedRequest('/chat', {
             method: 'POST',
@@ -362,18 +452,19 @@ async function sendMessage() {
 
         if (!response.ok) throw new Error('Failed to send message');
         
-        removeTypingIndicator();
-        
         const data = await response.json();
-        appendMessage({
+        const messageElement = createMessageElement({
             role: 'assistant',
             content: data.response
         }, true);
         
+        // Replace typing indicator with actual message
+        typingIndicator.replaceWith(messageElement);
         updateStatusIndicator('Sent');
     } catch (error) {
         console.error('Failed to send message:', error);
         updateStatusIndicator('Failed to send message', true);
+        removeTypingIndicator();
     } finally {
         disableInput(false);
     }
@@ -384,21 +475,32 @@ function showTypingIndicator() {
     typingDiv.className = 'message assistant typing-message';
     typingDiv.innerHTML = `
         <div class="message-container">
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
             <div class="message-content">
-
+                <div class="message-header">
+                    <span class="message-sender">Ryn</span>
+                </div>
                 <div class="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                    <div class="typing-bubble"></div>
+                    <div class="typing-bubble"></div>
+                    <div class="typing-bubble"></div>
                 </div>
             </div>
         </div>
     `;
     messagesContainer.appendChild(typingDiv);
     scrollToBottom();
+    return typingDiv;
 }
 
-
+function removeTypingIndicator() {
+    const typingMessage = document.querySelector('.typing-message');
+    if (typingMessage) {
+        typingMessage.remove();
+    }
+}
 
 function logout() {
     localStorage.removeItem('token');
@@ -407,10 +509,6 @@ function logout() {
     showAuth();
 }
 
-function removeTypingIndicator() {
-    const indicator = document.querySelector('.typing-indicator');
-    if (indicator) indicator.remove();
-}
 
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 function toggleSidebar() {
@@ -422,4 +520,8 @@ function toggleSidebar() {
 menuToggle.addEventListener('click', toggleSidebar);
 sidebarOverlay.addEventListener('click', toggleSidebar);
 
+
+
+
+// Initialize the application
 initialize();
