@@ -431,44 +431,107 @@
         }
 
         @media (max-width: 768px) {
+            .auth-container {
+                padding: 1rem;
+                min-height: 100svh; /* Using small viewport height for mobile */
+            }
+
+            .auth-box {
+                padding: 2rem 1.5rem;
+                width: 100%;
+                max-width: 100%;
+                margin: 0 1rem;
+            }
+
+            .auth-input, .auth-button {
+                padding: 1rem;
+                font-size: 16px; /* Prevent zoom on mobile */
+            }
+
             .sidebar {
                 transform: translateX(-100%);
-                width: 100%;
+                width: 85%;
+                max-width: 320px;
             }
 
             .sidebar.open {
                 transform: translateX(0);
+                box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
             }
 
             .main-content {
                 margin-left: 0;
+                height: 100svh;
             }
 
             .message {
-                max-width: 90%;
+                max-width: 95%;
             }
 
-            .message-avatar {
-                width: 32px;
-                height: 32px;
-                font-size: 0.875rem;
+            .message-content {
+                max-width: calc(100vw - 100px);
+                word-wrap: break-word;
+            }
+
+            .message-text {
+                white-space: pre-wrap;
+                word-break: break-word;
             }
 
             .input-container {
-                padding: 1rem;
+                padding: 0.75rem;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(26, 26, 31, 0.98);
             }
 
             .input-wrapper {
                 padding: 0.5rem;
-            }
-
-            .message-input {
-                padding: 0.5rem;
+                margin-bottom: env(safe-area-inset-bottom);
             }
 
             .send-button {
                 padding: 0.5rem 1rem;
+                min-width: 80px;
             }
+
+            .messages-container {
+                padding: 1rem;
+                padding-bottom: 80px;
+                margin-bottom: env(safe-area-inset-bottom);
+            }
+
+            .sidebar-overlay.active {
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            }
+        }
+
+        /* Add styles for message formatting */
+        .message-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .message-text p {
+            margin-bottom: 1em;
+        }
+
+        .message-text pre {
+            margin: 1em 0;
+            padding: 1em;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .message-text code {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
         }
 
         ::-webkit-scrollbar {
